@@ -1,7 +1,7 @@
 /* 
 Author: Gracen Wallace
 Class: ECE 6122 A
-Last Date Modified: 09/02/2021
+Last Date Modified: 09/07/2021
 
 Description: simple application to print student name and use some
 escape sequences.
@@ -19,7 +19,8 @@ using namespace std;
   function: main()
   entry point into application
 */
-int main() {
+int main() 
+{
     /* print required strings */
     cout << "My name is: (Gracen Wallace)\n";
     cout << "This (\") is a double quote.\n";
