@@ -91,7 +91,7 @@ int main(int argc, char* argv[])
     unsigned long ulInputNumber;
     if (!conform(argc, argv[1], ulInputNumber)) 
     {
-        cout << "Please include unsigned long argument!" << endl;
+        cout << "Please include correct argument!" << endl;
         return 1;
     }
 

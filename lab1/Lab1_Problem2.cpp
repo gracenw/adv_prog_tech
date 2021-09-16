@@ -26,10 +26,10 @@ using namespace std;
 int main(int argc, char* argv[]) 
 {
     /* certify the command argument exists and conforms to requirements */
-    unsigned long ulInputNumber;
-    if (!conform(argc, argv[1], ulInputNumber)) 
+    unsigned long num_moves;
+    if (!conform(argc, argv[1], num_moves)) 
     {
-        cout << "Please include unsigned long argument!" << endl;
+        cout << "Please include correct argument!" << endl;
         return 1;
     }
 
@@ -42,7 +42,7 @@ int main(int argc, char* argv[])
     /* 0 = up, 1 = right, 2 = down, 3 = left */
     int dir = 0;
 
-    while (ulInputNumber > 0) 
+    while (num_moves > 0) 
     {
         /* determine whether current location is black or white */
         set<pair<int, int>>::iterator it = black.find(curr);
@@ -105,7 +105,7 @@ int main(int argc, char* argv[])
         }
 
         /* decrement number of moves */
-        ulInputNumber --;
+        num_moves --;
     }
 
     /* write output to file */
