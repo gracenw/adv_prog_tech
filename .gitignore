@@ -1,4 +1,4 @@
-.vscode/settings.json
+.vscode/*.json
 lab0/a.out
 lab1/a.out
 lab1/*.txt

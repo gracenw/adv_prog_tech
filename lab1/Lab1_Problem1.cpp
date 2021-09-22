@@ -15,7 +15,7 @@
 #include <math.h>
 #include <list>
 #include <iterator>
-#include "helper.h"
+#include "Lab1_Helper.h"
 using namespace std;
 
 /*
