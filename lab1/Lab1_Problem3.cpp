@@ -16,21 +16,26 @@
 #include <math.h>
 #include "float.h"
 #include "Lab1_Helper.h"
-
 using namespace std;
 
+/* for readability purposes */
 #define point pair<float, float>
-#define uvec pair<float, float>
+#define vector pair<float, float>
 
-ostream & operator<<(ostream & stream, const pair<float, float> & p) { return stream << "" << p.first << ", " << p.second << ""; }
+/* 
+  for debugging purposes
+  ostream & operator<<(ostream & stream, const pair<float, float> & p) { return stream << "" << p.first << ", " << p.second << ""; }
+*/
 
-static int side_length = 20;
+/* important variables */
+static int sideLength = 20;
 static float height = 17.3205;
-static float hypo_length = sqrt(100 + pow(height, 2));
+static float hypoLength = sqrt(100 + pow(height, 2));
 
-inline uvec sub(const uvec & left, const uvec & right) { return make_pair((left.first - right.first), (left.second - right.second)); }
-inline float dot(const uvec & left, const uvec & right) { return ((left.first * right.first) + (left.second * right.second)); }
-inline uvec mul(float n, const uvec & vec) { return make_pair((vec.first * n), (vec.second * n)); }
+/* vectors functions for calculating reflection vector */
+inline vector sub(const vector & left, const vector & right) { return make_pair((left.first - right.first), (left.second - right.second)); }
+inline float dot(const vector & left, const vector & right) { return ((left.first * right.first) + (left.second * right.second)); }
+inline vector mul(float n, const vector & vec) { return make_pair((vec.first * n), (vec.second * n)); }
 
 /* adapted from https://www.geeksforgeeks.org/program-for-point-of-intersection-of-two-lines/ */
 bool intersect(point A, point B, point C, point D, point & intersect)
@@ -66,83 +71,83 @@ bool intersect(point A, point B, point C, point D, point & intersect)
     }
 }
 
+/* 
+  function: main
+  entry point, reads performs ray tracing of laser beam in white cell until beam
+  exits cell, writes total number of reflections to text file
+*/
 int main(int argc, char* argv[]) 
 {
     /* certify the command argument exists and conforms to requirements */
-    float initial_x;
-    if (!conform(argc, argv[1], initial_x, -(side_length / 2), (side_length / 2))) /* must be below 10 or greater than -10 */
+    float initialX;
+    if (!conform(argc, argv[1], initialX, -(sideLength / 2), (sideLength / 2))) /* must be below 10 or greater than -10 */
     {
         cout << "Please include correct argument!" << endl;
         return 1;
     }
 
-    /* begin with one reflection off AB */
+    /* begin with zero reflections, starting side AB */
     int reflections = 0;
-    int side = 1;
+    int currentSide = 1;
 
     /* calculate first incidence angle */
-    float incidence = atan(initial_x / height);
+    float incidenceAngle = atan(initialX / height);
 
     /* useful points */
-    point A = make_pair(-(side_length / 2), height);
-    point B = make_pair((side_length / 2), height);
+    point A = make_pair(-(sideLength / 2), height);
+    point B = make_pair((sideLength / 2), height);
     point C = make_pair(0, 0);
 
     /* useful vectors */
-    uvec ab = make_pair(1, 0); /* side 1 */
-    uvec ab_norm = make_pair(0, -1);
-
-    uvec ca = make_pair(-((side_length / 2) / hypo_length), (height / hypo_length)); /* side 2 */
-    uvec ca_norm = make_pair((height / hypo_length), ((side_length / 2) / hypo_length));
-
-    uvec cb = make_pair(((side_length / 2) / hypo_length), (height / hypo_length)); /* side 3 */
-    uvec cb_norm = make_pair(-(height / hypo_length), ((side_length / 2) / hypo_length));
+    vector side1Norm = make_pair(0, -1); /* side AB */
+    vector side2Norm = make_pair((height / hypoLength), ((sideLength / 2) / hypoLength)); /* side CA */
+    vector side3Norm = make_pair(-(height / hypoLength), ((sideLength / 2) / hypoLength)); /* side CB */
 
     /* point object to keep track of beam position */
-    point curr = make_pair(initial_x, height);
+    point currentPoint = make_pair(initialX, height);
 
-    /* calculate unit vector of first collision */
-    uvec i_vec;
-    if (incidence != 0) /* beam veers left or right */
+    /* calculate unit incidence vector of first collision */
+    vector incidenceVector;
+    if (incidenceAngle != 0) /* beam veers left or right */
     {
-        i_vec = make_pair(sin(incidence), -cos(incidence));
+        incidenceVector = make_pair(sin(incidenceAngle), -cos(incidenceAngle));
     }
     else /* beam immediately exits cell after reflecting off AB */
     {
-        curr = make_pair(0, 0);
+        currentPoint = make_pair(0, 0);
         reflections ++;
     }
     
     float m, b;
-    point inter, coord1, coord2;
-    uvec norm, reflect;
+    point intersectPoint, coord1, coord2;
+    vector normVector, reflectVector;
 
     /* perform series of reflections until beam exits cell */
-    if (curr.first != 0) 
+    if (currentPoint.first != 0) 
     {
         do
         {
             /* find collision point on new side */
-            m = i_vec.second / i_vec.first;
-            b = curr.second - m * curr.first;
+            m = incidenceVector.second / incidenceVector.first;
+            b = currentPoint.second - m * currentPoint.first;
             coord1 = make_pair(20, (m * 20 + b));
             coord2 = make_pair(-20, (m * -20 + b));
 
             /* determine which side beam will hit */
-            if (side != 1 && intersect(coord1, coord2, A, B, inter)) /* intersects with AB */
+            if (currentSide != 1 && intersect(coord1, coord2, A, B, intersectPoint)) /* intersects with AB */
             {
-                norm = ab_norm;
-                side = 1;
+                normVector = side1Norm;
+                currentSide = 1;
             }
-            else if (side != 3 && intersect(coord1, coord2, A, C, inter)) /* intersects with CA */
+            else if (currentSide != 3 && intersect(coord1, coord2, A, C, intersectPoint)) /* intersects with CA */
             {
-                norm = ca_norm;
-                side = 3;
+                normVector = side2Norm;
+                currentSide = 3;
             }
-            else if (side != 2 && intersect(coord1, coord2, C, B, inter)) /* intersects with CB */
+            else if (currentSide != 2 && intersect(coord1, coord2, C, B, intersectPoint)) /* intersects with CB */
             {
-                norm = cb_norm;
-                side = 2;
+                normVector = side3Norm;
+                currentSide = 2;
             }
             else 
             {
@@ -151,29 +156,22 @@ int main(int argc, char* argv[])
             }
 
             /* calculate reflection vector -> R = I - 2N(I . N) */
-            reflect = sub(i_vec, mul((2 * dot(i_vec, norm)), norm));
-            
-            // cout << "intersection: " << inter << endl;
-            // cout << "normal: " << norm << endl;
-            // cout << "incidence: " << i_vec << endl;
-            // cout << "reflection: " << reflect << endl;
-            // cout << "reflections: " << reflections << endl << "--------" << endl;
+            reflectVector = sub(incidenceVector, mul((2 * dot(incidenceVector, normVector)), normVector));
 
             /* save intersection point as current point */
-            curr = inter;
+            currentPoint = intersectPoint;
 
             /* save reflection vector as next incidence vector */
-            i_vec = reflect;
+            incidenceVector = reflectVector;
 
             /* increment number of reflections */
             reflections ++;
-        } while (curr.second > 0.01);
+        } while (currentPoint.second > 0.01);
     }
 
     /* write output to file */
     ofstream ofs ("output3.txt", ofstream::trunc);
     ofs << reflections;
-    // cout << "Successfully exited after " << reflections << " reflections" << endl;
     ofs.close();
 
     return 0;
