@@ -14,8 +14,8 @@
 #include <iostream>
 #include <fstream>
 #include <math.h>
+#include <cstring>
 #include "float.h"
-#include "Lab1_Helper.h"
 using namespace std;
 
 /* for readability purposes */
@@ -26,6 +26,9 @@ using namespace std;
   for debugging purposes
   ostream & operator<<(ostream & stream, const pair<float, float> & p) { return stream << "" << p.first << ", " << p.second << ""; }
 */
+
+/* checks that command line argument conforms to criteria */
+bool conform(const int argc, const char * argv1, float & placeholder, int lower, int upper);
 
 /* important variables */
 static int sideLength = 20;
@@ -175,4 +178,41 @@ int main(int argc, char* argv[])
     ofs.close();
 
     return 0;
+}
+
+/* 
+  function: conform
+  ensures the command line argument conforms to requirements, 
+  saves float in placeholder and returns false if fail.
+  accepts argc, argv1, float reference, and range of value
+*/
+bool conform(const int argc, const char * argv1, float & placeholder, int lower, int upper) 
+{
+    /* make sure there is a command line arg */
+    if (argc < 2) 
+    {
+        return false;
+    }
+
+    /* check that all chars in argv[1] are numbers */
+    for (int i = 0; i < strlen(argv1); i++) 
+    {
+        if (int(argv1[i]) < 45 || int(argv1[i]) > 57 || int(argv1[1]) == 47)
+        {
+            return false;
+        }
+    }
+
+    /* convert to long */
+    placeholder = strtof(argv1, NULL);
+
+    /* check that long is in correct range */
+    if (placeholder > lower && placeholder < upper) 
+    {
+        return true;
+    }
+    else 
+    {
+        return false;
+    }
 }

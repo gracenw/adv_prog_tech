@@ -1,7 +1,7 @@
 /* 
   Author: Gracen Wallace
   Class: ECE 6122 A
-  Last Date Modified: 09/22/2021
+  Last Date Modified: 09/23/2021
 
   Description: 
 
@@ -15,8 +15,11 @@
 #include <fstream>
 #include <set>
 #include <iterator>
-#include "Lab1_Helper.h"
+#include <cstring>
 using namespace std;
+
+/* checks that command line argument conforms to criteria */
+bool conform(const int argc, const char * argv1, unsigned long & placeholder);
 
 /* 
   function: main
@@ -114,4 +117,39 @@ int main(int argc, char* argv[])
     ofs.close();
 
     return 0;
+}
+
+/* 
+  function: conform
+  ensures the command line argument conforms to requirements, 
+  saves unsigned long in placeholder and returns false if fail.
+  accepts argc, argv1, and unsigned long reference
+*/
+bool conform(const int argc, const char * argv1, unsigned long & placeholder) 
+{
+    /* make sure there is a command line arg */
+    if (argc < 2) 
+    {
+        return false;
+    }
+
+    /* check that all chars in argv[1] are numbers */
+    for (int i = 0; i < strlen(argv1); i++) 
+    {
+        if (int(argv1[i]) < 48 || int(argv1[i]) > 57) 
+        {
+            return false;
+        }
+    }
+
+    /* convert to unsigned long */
+    placeholder = strtoul(argv1, NULL, 10);
+
+    /* check that unsigned long is not zero or negative */
+    if (placeholder <= 0) 
+    {
+        return false;
+    }
+
+    return true;
 }
