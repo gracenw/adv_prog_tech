@@ -11,4 +11,4 @@ two: Lab2_Problem2.cpp
 	$(CC) $(LFLAGS) -o two.out $^
 
 clean:
-	rm -f *.out
+	rm -f *.out *.txt

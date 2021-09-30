@@ -1,3 +1,3 @@
 .vscode/*.json
 **/*.txt
-**/a.out
+**/*.out
