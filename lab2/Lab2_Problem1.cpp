@@ -1,10 +1,12 @@
 /* 
   Author: Gracen Wallace
   Class: ECE 6122 A
-  Last Date Modified: 
+  Last Date Modified: 10/6/21
 
   Description: 
-  
+  Random ant simulator where an ant moves seeds from the bottom row of a grid to 
+  the top; creates threads and runs to convergence of final number of expected moves.
+  Outputs number of threads, number of runs, and final expected moves to a text file.
 */
 
 /* include standard c++ namespace and necessary libraries */
@@ -31,7 +33,8 @@ struct laboringAnt
 
 /* 
   function: laboriousAnt()
-  
+  simulates random movement of ant around a grid until all seeds along bottom row
+  have been moved to the top row
 */
 void laboriousAnt (const unsigned numRuns)
 {
@@ -70,10 +73,10 @@ void laboriousAnt (const unsigned numRuns)
                     ant.hasSeed = true;
                 }
 
-                if (ant.x == 0)
+                if (ant.x == 0) 
                 {
                     nextMove = twoMoves(generator);
-                    switch(nextMove) 
+                    switch(nextMove) /* bottom left corner */
                     {
                         case 0: /* up */
                             ant.y ++;
@@ -85,10 +88,10 @@ void laboriousAnt (const unsigned numRuns)
                             break;
                     }
                 }
-                else if (ant.x == 4)
+                else if (ant.x == 4) 
                 {
                     nextMove = twoMoves(generator);
-                    switch(nextMove) 
+                    switch(nextMove) /* bottom right corner */
                     {
                         case 0: /* up */
                             ant.y ++;
@@ -103,7 +106,7 @@ void laboriousAnt (const unsigned numRuns)
                 else
                 {
                     nextMove = threeMoves(generator);
-                    switch(nextMove) 
+                    switch(nextMove) /* bottom mid row */
                     {
                         case 0: /* up */
                             ant.y ++;
@@ -131,7 +134,7 @@ void laboriousAnt (const unsigned numRuns)
                 if (ant.x == 0)
                 {
                     nextMove = twoMoves(generator);
-                    switch(nextMove) 
+                    switch(nextMove) /* top left corner */
                     {
                         case 0: /* down */
                             ant.y --;
@@ -146,7 +149,7 @@ void laboriousAnt (const unsigned numRuns)
                 else if (ant.x == 4)
                 {
                     nextMove = twoMoves(generator);
-                    switch(nextMove) 
+                    switch(nextMove)  /* top right corner */
                     {
                         case 0: /* down */ 
                             ant.y --;
@@ -161,7 +164,7 @@ void laboriousAnt (const unsigned numRuns)
                 else
                 {
                     nextMove = threeMoves(generator);
-                    switch(nextMove) 
+                    switch(nextMove) /* top mid row */
                     {
                         case 0: /* down */
                             ant.y --;
@@ -182,7 +185,7 @@ void laboriousAnt (const unsigned numRuns)
                 if (ant.x == 0)
                 {
                     nextMove = threeMoves(generator);
-                    switch(nextMove) 
+                    switch(nextMove) /* left mid column */
                     {
                         case 0: /* right */
                             ant.x ++;
@@ -200,7 +203,7 @@ void laboriousAnt (const unsigned numRuns)
                 else if (ant.x == 4)
                 {
                     nextMove = threeMoves(generator);
-                    switch(nextMove) 
+                    switch(nextMove) /* right mid column */
                     {
                         case 0: /* left */
                             ant.x --;
@@ -218,7 +221,7 @@ void laboriousAnt (const unsigned numRuns)
                 else 
                 {
                     nextMove = fourMoves(generator);
-                    switch(nextMove) 
+                    switch(nextMove) /* middle grid */
                     {
                         case 0: /* up */
                             ant.y ++;
