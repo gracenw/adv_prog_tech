@@ -1,7 +1,7 @@
 /* 
   Author: Gracen Wallace
   Class: ECE 6122 A
-  Last Date Modified: 10/6/21
+  Last Date Modified: 10/8/21
 
   Description: 
   Random ant simulator where an ant moves seeds from the bottom row of a grid to 
@@ -251,11 +251,8 @@ void laboriousAnt (const unsigned numRuns)
   creates thread for laboriousAnt function, write number of threads, expected
   steps, and number of runs needed for convergence to output file
 */
-int main(int argc, char* argv[]) 
+int main() 
 {
-    /* measure execution time - start */
-    chrono::steady_clock::time_point start = chrono::steady_clock::now();
-
     /* determine number of threads system can support */
     const unsigned numThreads = thread::hardware_concurrency() - 1;
 
@@ -286,18 +283,11 @@ int main(int argc, char* argv[])
     /* calculate expected moves */
     expectedMoves = ((double) totalMoves) / ((double) totalRuns);
 
-    /* measure execution time - end */
-    chrono::steady_clock::time_point end = chrono::steady_clock::now();
-
-    /* print time elapsed */
-    const int64_t elapsed = chrono::duration_cast<chrono::seconds>(end - start).count();
-    cout << "Time elapsed: " << elapsed << " seconds" << endl;
-
     /* write output to file */
     ofstream ofs ("ProblemOne.txt", ofstream::trunc);
     ofs << "Number of threads created: " << (numThreads + 1) << endl << endl;
-    ofs << "Expected number of steps: " << setprecision(9) << expectedMoves << endl << endl;
-    ofs << "Total number of runs needed for solution convergence: " << totalRuns << endl;
+    ofs << "Expected number of steps: " << fixed << setprecision(6) << expectedMoves << endl << endl;
+    ofs << "Total number of runs needed for solution convergence: " << totalRuns;
     ofs.close();
 
     /* return successfully */
