@@ -4,7 +4,7 @@
   Last Date Modified: 10/13/21
 
   Description: 
-  Computes the integral of f(x) using the midpoint rule, given
+  Computes the integral of f(x) using midpoint rule, given
   a certain number of subdivisions read in from the command. Writes
   final integral value to text file.
 */
