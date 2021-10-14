@@ -1,7 +1,7 @@
 /* 
   Author: Gracen Wallace
   Class: ECE 6122 A
-  Last Date Modified: 10/8/21
+  Last Date Modified: 10/13/21
 
   Description: 
   Computes the integral of f(x) using the midpoint rule, given
@@ -38,22 +38,18 @@ int main (int argc, char* argv[])
     }
 
     /* variables for integral calculation */
-    double estimation = 0;
+    double estimation;
     double integralMin = 0;
     double integralMax = log(2) / 7;
     double deltaX = (integralMax - integralMin) / N;
 
-    #pragma omp parallel
+    #pragma omp parallel for reduction(+:estimation)
+    for (int i = 0; i < N; i ++)
     {
-        #pragma omp for nowait
-        for (int i = 0; i < N; i ++)
-        {
-            /* calculate area of current section using F(midpoint) and deltaX */
-            double midpoint = deltaX * i + (deltaX / 2);
-            double area = (14 * exp(7 * midpoint)) * deltaX;
-            #pragma omp atomic
-            estimation += (area);
-        }
+        /* calculate area of current section using F(midpoint) and deltaX */
+        double midpoint = deltaX * i + (deltaX / 2);
+        double area = (14 * exp(7 * midpoint)) * deltaX;
+        estimation += area;
     }
 
     /* write output to file */

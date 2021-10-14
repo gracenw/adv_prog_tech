@@ -1,3 +1,4 @@
 .vscode/*.json
 **/*.txt
 **/*.out
+**/*.pbs
