@@ -4,7 +4,7 @@ CC = g++
 	$(CC) -c -o $@ $<
 
 one: Lab2_Problem1.cpp
-	$(CC) -pthread -O3 -o one.out $^
+	$(CC) -lpthread -O3 -o one.out $^
 
 two: Lab2_Problem2.cpp
 	$(CC) -fopenmp -O3 -o two.out $^

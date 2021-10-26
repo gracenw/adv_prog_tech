@@ -1,6 +1,5 @@
-.vscode/*.json
+.vscode
 **/*.txt
 **/*.out
 **/*.pbs
 **/*.py
-**/Makefile
