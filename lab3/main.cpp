@@ -1,3 +1,14 @@
+/* 
+  Author: Gracen Wallace
+  Class: ECE 6122 A
+  Last Date Modified: 10/28/21
+
+  Description: 
+  Buzzy's revenge game; Buzzy acts a projectile, aiming for other school's mascots but trying to avoid 
+  hitting innocent woodland creatures. Points are accumulated for hitting desired targets, but Buzzy is 
+  limited to 5 lives before the level restarts.
+*/
+
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
 #include <array>
@@ -253,13 +264,15 @@ int main()
     buzzySprite.setRotation(-30);
     buzzySprite.setPosition(5, 550);
 
+    /* status information */
     bool started = false;
     int numLives = 5;
     int score = 0;
 
+    /* projectile motion variables */
     float velocityMin = 200;
     float velocityMax = 300;
-    float velocityStep = 5;
+    float velocityStep = 2;
     float powerSize = 250;
     float velocity = ((powerSize * (velocityMax - velocityMin)) / 500) + velocityMin;
 
@@ -273,6 +286,7 @@ int main()
     float dY;
     Clock clock;
 
+    /* random number generator for bee movement */
     std::default_random_engine generator;
     generator.seed(std::chrono::system_clock::now().time_since_epoch().count());
     std::uniform_int_distribution<int> vertical(-10, 10);
@@ -283,7 +297,7 @@ int main()
     {
         Event event;
 
-        /* check for death of mascots or zero lives */
+        /* check for death of mascots or zero lives, reset back to start if so */
         if (numLives == 0 || (started && !livingSprites[bulldogIndex] && !livingSprites[tigerIndex]))
         {
             started = false;
@@ -318,11 +332,13 @@ int main()
 
         while (window.pollEvent(event))
         {
+            /* close window if close event triggered */
             if (event.type == Event::Closed)
             {
                 window.close();
             }
 
+            /* poll for key presses when buzzy is not in the process of moving across screen */
             if (event.type == Event::KeyPressed && !buzzyActive)
             {
                 switch (event.key.code)
@@ -330,11 +346,13 @@ int main()
                 case Keyboard::Enter:
                     if (!started)
                     {
+                        /* start up game */
                         started = true;
                         beeActive = true;
                     }
                     else
                     {
+                        /* reset back to start */
                         started = false;
                         numLives = 5;
                         score = 0;
@@ -366,6 +384,7 @@ int main()
                     }
                     break;
                 case Keyboard::Space:
+                    /* adjust velocity and power bar */
                     if (started && powerSize <= 500)
                     {
                         if (powerSize == 500)
@@ -378,15 +397,18 @@ int main()
                     }
                     break;
                 case Keyboard::Escape:
+                    /* close game */
                     window.close();
                     break;
                 case Keyboard::Up:
+                    /* move buzzy's angle up */
                     if (started && buzzySprite.getRotation() > 270)
                     {
                         buzzySprite.setRotation(buzzySprite.getRotation() - 5);
                     }
                     break;
                 case Keyboard::Down:
+                    /* move buzzy's angle down */
                     if (started && buzzySprite.getRotation() < 355)
                     {
                         buzzySprite.setRotation(buzzySprite.getRotation() + 5);
@@ -397,6 +419,7 @@ int main()
                 }
             }
 
+            /* if space is released, trigger buzzy moving as a projectile */
             if (event.type == Event::KeyReleased && !buzzyActive)
             {
                 if (started && event.key.code == Keyboard::Space)
@@ -411,6 +434,7 @@ int main()
             }
         }
 
+        /* generate randome bee movement */
         if (beeActive)
         {
             Vector2f currentPos = beeSprite.getPosition();
@@ -424,6 +448,7 @@ int main()
 
             if (beeSprite.getScale().x < 0)
             {
+                /* bee moves left */
                 if (currentPos.x > 150)
                 {
                     beeSprite.setPosition(currentPos.x - 1, currentPos.y + numVerticalMoves);
@@ -435,6 +460,7 @@ int main()
             }
             else
             {
+                /* bee moves right */
                 if (currentPos.x < 1770)
                 {
                     beeSprite.setPosition(currentPos.x + 1, currentPos.y + numVerticalMoves);
@@ -446,7 +472,7 @@ int main()
             }
         }
 
-        //move buzzy
+        /* move buzzy as a projectile as time progresses */
         if (started && buzzyActive)
         {
             float t = clock.getElapsedTime().asSeconds();
@@ -457,17 +483,21 @@ int main()
             buzzySprite.setRotation(buzzySprite.getRotation() + 0.15);
         }
 
-        //check for intersections w/ animals
+        /* check for intersections with the other different animals */
         if (started && buzzyActive)
         {
+            /* loop through all sprites besides bee */
             for (int i = 0; i < 10; i++)
             {
                 if (buzzySprite.getGlobalBounds().intersects(sprites[i].getGlobalBounds()) && livingSprites[i])
                 {
                     livingSprites[i] = false;
+                    /* unicorn sprite was hit */
                     if (i == unicornIndex)
                     {
                         loseLife = false;
+
+                        /* increase lives */
                         if (numLives < 5)
                         {
                             numLives++;
@@ -475,30 +505,35 @@ int main()
 
                         for (int i = 0; i < 10; i++)
                         {
+                            /* move other sprites above down one row */
                             if (sprites[i].getPosition().x == positions[randomizedOrder[unicornIndex]].x && sprites[i].getPosition().y < positions[randomizedOrder[unicornIndex]].y && livingSprites[i])
                             {
                                 sprites[i].setPosition(sprites[i].getPosition().x, sprites[i].getPosition().y + 155);
                             }
                         }
                     }
+                    /* bulldog mascot was hit */
                     else if (i == bulldogIndex)
                     {
                         loseLife = false;
                         score += 25;
                         for (int i = 0; i < 10; i++)
                         {
+                            /* remove other creatures in same column */
                             if (sprites[i].getPosition().x == positions[randomizedOrder[bulldogIndex]].x)
                             {
                                 livingSprites[i] = false;
                             }
                         }
                     }
+                    /* tiger mascot was hit */
                     else if (i == tigerIndex)
                     {
                         loseLife = false;
                         score += 25;
                         for (int i = 0; i < 10; i++)
                         {
+                            /* remove other creatures in same column */
                             if (sprites[i].getPosition().x == positions[randomizedOrder[tigerIndex]].x)
                             {
                                 livingSprites[i] = false;
@@ -506,9 +541,12 @@ int main()
                         }
                     }
 
+                    /* reset buzzy back to starting spot */
                     buzzySprite.setPosition(initialX, initialY);
                     buzzySprite.setRotation(-30);
                     buzzyActive = false;
+
+                    /* if buzzy did not hit mascot, bee, or unicorn, loses a life */
                     if (loseLife)
                     {
                         numLives--;
@@ -516,6 +554,7 @@ int main()
                 }
             }
 
+            /* check for collision with bee/insect, add points accordingly */
             if (beeActive && buzzySprite.getGlobalBounds().intersects(beeSprite.getGlobalBounds()))
             {
                 loseLife = false;
@@ -524,7 +563,7 @@ int main()
             }
         }
 
-        // check for leaving screen
+        /* check if buzzy leaves the screen and whether he consequently loses a life */
         if (started && buzzyActive && (buzzySprite.getPosition().x > 1920 || buzzySprite.getPosition().y < 0 || buzzySprite.getPosition().y > 1080))
         {
             buzzySprite.setPosition(initialX, initialY);
