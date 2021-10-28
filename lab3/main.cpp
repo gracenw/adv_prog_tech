@@ -480,7 +480,7 @@ int main()
             float prevDY = dY;
             dY = velocityY * t - 4 * 9.8 * t * t;
             buzzySprite.setPosition(initialX + 2 * dX, initialY - 2 * dY);
-            buzzySprite.setRotation(buzzySprite.getRotation() + 0.15);
+            buzzySprite.setRotation(buzzySprite.getRotation() + 0.05);
         }
 
         /* check for intersections with the other different animals */
