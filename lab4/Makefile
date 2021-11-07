@@ -1,9 +1,9 @@
 # Author: Gracen Wallace
 # Class: ECE 6122 A
-# Last Date Modified: 
+# Last Date Modified: 11/06/21
 # 
 # Description:
-# 
+# Simple Makefile for SFML TCP client/server application.
 
 CC = g++
 
@@ -19,4 +19,4 @@ client: client.cpp
 	$(CC) $^ -lsfml-network -lsfml-system -o client.out
 
 clean:
-	rm -f *.out
+	rm -f *.out *.log
