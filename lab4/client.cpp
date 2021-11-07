@@ -16,10 +16,10 @@
 
 using namespace std;
 
-int main (int argc, char* argv[])
+int main(int argc, char *argv[])
 {
     /* make sure there are correct number of args*/
-    if (argc != 3) 
+    if (argc != 3)
     {
         cout << "Invalid command line argument detected: incorrect number of arguments passed." << endl;
         cout << "Please check your values and press any key to end the program!" << endl;
@@ -28,9 +28,9 @@ int main (int argc, char* argv[])
     }
 
     /* check that all chars in argv[2] are numbers */
-    for (int i = 0; i < strlen(argv[2]); i++) 
+    for (int i = 0; i < strlen(argv[2]); i++)
     {
-        if (int(argv[2][i]) < 48 || int(argv[2][i]) > 57) 
+        if (int(argv[2][i]) < 48 || int(argv[2][i]) > 57)
         {
             cout << "Invalid command line argument detected: non-numeric values in port number." << endl;
             cout << "Please check your values and press any key to end the program!" << endl;
@@ -43,14 +43,13 @@ int main (int argc, char* argv[])
     unsigned long port_number = strtoul(argv[2], NULL, 10);
 
     /* check that port number is in correct range */
-    if (port_number < 61000 || port_number > 65535) 
+    if (port_number < 61000 || port_number > 65535)
     {
         cout << "Invalid command line argument detected: port number outside accepted range." << endl;
         cout << "Please check your values and press any key to end the program!" << endl;
         cin.get();
         return EXIT_FAILURE;
     }
-
 
     sf::IpAddress ip_address(argv[1]);
     if (ip_address == sf::IpAddress::None)
@@ -62,7 +61,7 @@ int main (int argc, char* argv[])
     }
 
     sf::TcpSocket socket;
-    sf::Socket::Status status = socket.connect(ip_address, (unsigned short) port_number);
+    sf::Socket::Status status = socket.connect(ip_address, port_number);
     if (status != sf::Socket::Done)
     {
         cout << "Failed to connect to the server at " << ip_address.toString() << " on " << port_number << "." << endl;
@@ -70,6 +69,33 @@ int main (int argc, char* argv[])
         cin.get();
         return EXIT_FAILURE;
     }
+
+    /* loop until escape is entered */
+    cout << "Begin TCP connection socket\nPlease enter a message: " << endl;
+    while (true)
+    {
+        /* prompt for input */
+        char out[128];
+        out[0] = 0;
+        cin.getline(out, 128);
+
+        /* check for ESC to end loop */
+        if (out[0] == 27)
+        {
+            cout << "Ending TCP connection" << endl;
+            break;
+        }
+
+        /* send data to server */
+        if (out[0])
+        {
+            socket.send(out, strlen(out));
+            cout << "Please enter a message: " << endl;
+        }
+    }
+
+    /* end connection with server */
+    socket.disconnect();
 
     /* return successfully */
     return EXIT_SUCCESS;

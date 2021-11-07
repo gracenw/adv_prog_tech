@@ -13,10 +13,10 @@ all: client server
 	$(CC) -c -o $@ $<
 
 server: server.cpp
-	$(CC) $^ -lsfml-network -o server.out
+	$(CC) $^ -lsfml-network -lsfml-system -o server.out
 
 client: client.cpp
-	$(CC) $^ -lsfml-network -o client.out
+	$(CC) $^ -lsfml-network -lsfml-system -o client.out
 
 clean:
 	rm -f *.out
