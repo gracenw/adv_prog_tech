@@ -1,10 +1,10 @@
 /* 
   Author: Gracen Wallace
   Class: ECE 6122 A
-  Last Date Modified: 
+  Last Date Modified: 11/06/21
 
   Description: 
-  
+  Simple SFML client application to send messages from command line to a designated TCP server.
 */
 
 #include <SFML/Network.hpp>
@@ -40,10 +40,10 @@ int main(int argc, char *argv[])
     }
 
     /* convert to unsigned long */
-    unsigned long port_number = strtoul(argv[2], NULL, 10);
+    unsigned long portNumber = strtoul(argv[2], NULL, 10);
 
     /* check that port number is in correct range */
-    if (port_number < 61000 || port_number > 65535)
+    if (portNumber < 61000 || portNumber > 65535)
     {
         cout << "Invalid command line argument detected: port number outside accepted range." << endl;
         cout << "Please check your values and press any key to end the program!" << endl;
@@ -51,8 +51,9 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    sf::IpAddress ip_address(argv[1]);
-    if (ip_address == sf::IpAddress::None)
+    /* check validity of IP address */
+    sf::IpAddress ipAddress(argv[1]);
+    if (ipAddress == sf::IpAddress::None)
     {
         cout << "Invalid command line argument detected: invalid IP address." << endl;
         cout << "Please check your values and press any key to end the program!" << endl;
@@ -60,18 +61,18 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+    /* create client socket to server */
     sf::TcpSocket socket;
-    sf::Socket::Status status = socket.connect(ip_address, port_number);
-    if (status != sf::Socket::Done)
+    if (socket.connect(ipAddress, portNumber) != sf::Socket::Done)
     {
-        cout << "Failed to connect to the server at " << ip_address.toString() << " on " << port_number << "." << endl;
+        cout << "Failed to connect to the server at " << ipAddress.toString() << " on " << portNumber << "." << endl;
         cout << "Please check your values and press any key to end the program!" << endl;
         cin.get();
         return EXIT_FAILURE;
     }
 
     /* loop until escape is entered */
-    cout << "Begin TCP connection socket\nPlease enter a message: " << endl;
+    cout << "Please enter a message: " << endl;
     while (true)
     {
         /* prompt for input */
@@ -82,7 +83,6 @@ int main(int argc, char *argv[])
         /* check for ESC to end loop */
         if (out[0] == 27)
         {
-            cout << "Ending TCP connection" << endl;
             break;
         }
 

@@ -1,10 +1,11 @@
 /* 
   Author: Gracen Wallace
   Class: ECE 6122 A
-  Last Date Modified: 
+  Last Date Modified: 11/06/21
 
   Description: 
-  
+  Simple SFML server application that writes all connections, incoming messages, and disconnections
+  to a server log file; supports multiple clients.
 */
 
 #include <SFML/Network.hpp>
@@ -14,7 +15,7 @@
 #include <iostream>
 #include <fstream>
 #include <iterator>
-#include <vector>
+#include <list>
 
 using namespace std;
 
@@ -42,10 +43,10 @@ int main(int argc, char *argv[])
     }
 
     /* convert to unsigned long */
-    unsigned long port_number = strtoul(argv[1], NULL, 10);
+    unsigned long portNumber = strtoul(argv[1], NULL, 10);
 
     /* check that port number is in correct range */
-    if (port_number < 61000 || port_number > 65535)
+    if (portNumber < 61000 || portNumber > 65535)
     {
         cout << "Invalid command line argument detected: port number outside accepted range." << endl;
         cout << "Please check your values and press any key to end the program!" << endl;
@@ -55,61 +56,75 @@ int main(int argc, char *argv[])
 
     /* bind tcp listener to port */
     sf::TcpListener listener;
-    if (listener.listen(port_number) != sf::Socket::Done)
+    if (listener.listen(portNumber) != sf::Socket::Done)
     {
-        cout << "Failed to bind to port at " << port_number << "." << endl;
+        cout << "Failed to bind to port at " << portNumber << "." << endl;
         cout << "Please check your values and press any key to end the program!" << endl;
         cin.get();
         return EXIT_FAILURE;
     }
-    cout << "Begin TCP listening port" << endl;
 
-    /* establish vector of sockets for multiple clients */
-    vector<sf::TcpSocket *> sockets;
+    /* establish selector for multiple clients and add listening socket */
+    sf::SocketSelector selector;
+    selector.add(listener);
+
+    /* create list of all client sockets */
+    list<sf::TcpSocket*> clients;
 
     /* open server.log for writing */
     ofstream ofs("server.log", ofstream::app);
-
-    /* loop until escape is entered */
+    
+    /* loop until program is ended */
     while (true)
     {
-        // /* read input */
-        // char cmd = cin.get();
-
-        // /* check for ESC to end loop */
-        // if (cmd == 27)
-        // {
-        //     cout << "Ending TCP listening port" << endl;
-        //     break;
-        // }
-
-        /* accept new connection */
-        sf::TcpSocket client;
-        if (listener.accept(client) == sf::Socket::Done)
+        /* wait for a socket to be ready */
+        if (selector.wait())
         {
-            /* log new connection */
-            ofs << "Client at " << client.getRemoteAddress() << " (port " << client.getRemotePort() << ") connected." << endl;
-            sockets.push_back(&client);
-        }
-
-        /* check all established connections for incoming bytes or if they disconnected */
-        cout << "Checking established connections" << endl;
-        for (auto it = begin(sockets); it != end(sockets); it++)
-        {
-            /* check for disconnect */
-            if ((**it).getRemoteAddress() == sf::IpAddress::None)
+            if (selector.isReady(listener))
             {
-                /* logs disconnect */
-                ofs << "Client at " << (**it).getRemoteAddress() << " (port " << (**it).getRemotePort() << ") disconnected." << endl;
-                sockets.erase(it);
+                /* ready socket is listener, accept new client */
+                sf::TcpSocket* client = new sf::TcpSocket;
+                if (listener.accept(*client) == sf::Socket::Done)
+                {
+                    /* add client to list of clients and selector, and write connection to log */
+                    clients.push_back(client);
+                    selector.add(*client);
+                    ofs << "Client at " << (*client).getRemoteAddress() << " (port " << (*client).getRemotePort() << ") connected." << endl;
+                }
             }
-
-            /* accept incoming bytes from client */
-            char in[128];
-            std::size_t rcvd;
-            if ((**it).receive(in, strlen(in), rcvd) == sf::Socket::Done)
+            else
             {
-                ofs << (**it).getRemoteAddress() << " (" << (**it).getRemotePort() << "): " << (*in) << endl;
+                for (list<sf::TcpSocket*>::iterator it = clients.begin(); it != clients.end(); ++it)
+                {
+                    /* check if client is ready to receive incoming data */
+                    sf::TcpSocket& client = **it;
+                    if (selector.isReady(client))
+                    {
+                        /* create placeholder for incoming data */
+                        char in[128];
+                        size_t rcvd;
+                        auto status = client.receive(in, 128, rcvd);
+
+                        /* get rid of leftover and extraneous chars in buffer */
+                        for (int i = rcvd; i < 128; i++) 
+                        {
+                            in[i] = 0;
+                        }
+
+                        /* write message to log if reception complete */
+                        if (status == sf::Socket::Done)
+                        {
+                            ofs << client.getRemoteAddress() << " (" << client.getRemotePort() << "): " << in << endl;
+                        }
+                        /* log disconnect if client is no longer connected, remove from selector and list of clients */
+                        else if (status == sf::Socket::Disconnected)
+                        {
+                            ofs << "Client at " << (**it).getRemoteAddress() << " (port " << (**it).getRemotePort() << ") disconnected." << endl;
+                            selector.remove(**it);
+                            it = clients.erase(it);
+                        }
+                    }
+                }
             }
         }
     }
