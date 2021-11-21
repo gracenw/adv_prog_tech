@@ -45,9 +45,9 @@ unsigned checkArgs(const char * arg)
 */
 __global__ void calculateTemp(double * h, double * g, unsigned N)
 {
-    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    int i = blockIdx.x;
 
-    if ((i % (N - 1)) != 0 && (i % N) != 0 && i > N && i < (N * (N - 1)))
+    if (((i + 1) % N) != 0 && (i % N) != 0 && i > N && i < (N * (N - 1)))
     {
         g[i] = 0.25 * (h[i- 1] + h[i + 1] + h[i - N] + h[i + N]);
     }
@@ -59,7 +59,7 @@ __global__ void calculateTemp(double * h, double * g, unsigned N)
 */
 __global__ void copyMatrix(double * h, double * g, unsigned N)
 {
-    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    int i = blockIdx.x;
 
     h[i] = g[i];
 }
@@ -70,32 +70,34 @@ __global__ void copyMatrix(double * h, double * g, unsigned N)
 int main(int argc, char * argv[])
 {
     /* check arguments */
-    unsigned N = 100;
-    unsigned I = 1;
+    unsigned N = 0;
+    unsigned I = 0;
 
-    // for(int i = 1; i < argc; i++)
-    // {
-
-    // }
-    
-    /* placeholder for error checking */
-    cudaError_t err = cudaSuccess;
+    for (int i = 1; i < argc; i += 2)
+    {
+        if (strcmp(argv[i], "-N") == 0)
+        {
+            N = checkArgs(argv[i + 1]);
+            N = N + 2;
+        }
+        else if (strcmp(argv[i], "-I") == 0)
+        {
+            I = checkArgs(argv[i + 1]);
+        }
+        else
+        {
+            std::cout << "Invalid parameters, please check your values." << std::endl;
+            exit(EXIT_FAILURE);
+        }
+    }
 
     /* allocate cpu mem to array */
     size_t size = N * N * sizeof(double);
-    int numElements = (N - 2) * (N - 2);
     double * H_h = (double *) malloc(size);
     double * H_g = (double *) malloc(size);
 
-    /* verify that allocation succeeded */
-    if (H_h == NULL || H_g == NULL) 
-    {
-        std::cout << "Failed to allocate host matrices" << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
     /* initialize all array interior positions */
-    for (int i = 0; i < (N * N - 1); i++)
+    for (int i = 0; i < (N * N); i++)
     {
         if (i > (0.3 * (N - 1)) && i < (0.7 * (N - 1)))
         {
@@ -109,53 +111,19 @@ int main(int argc, char * argv[])
         }
     }
 
-    /* set small section to 100 celsius */
-    for (int i = ((int) ); i < ((int) ); i++)
-    {
-        
-    }
-
     /* allocate gpu mem to matrix H */
     double * D_h = NULL;
-    err = cudaMalloc((void **) &D_h, size);
-
-    // /* verify that allocation succeeded */
-    // if (err != cudaSuccess) 
-    // {
-    //     std::cout << "Failed to allocate device matrix H - " << cudaGetErrorString(err) << std::endl;
-    //     exit(EXIT_FAILURE);
-    // }
+    cudaMalloc((void **) &D_h, size);
 
     /* allocate gpu mem to matrix G */
     double * D_g = NULL;
-    err = cudaMalloc((void **) &D_g, size);
-
-    // /* verify that allocation succeeded */
-    // if (err != cudaSuccess) 
-    // {
-    //     std::cout << "Failed to allocate device matrix G - " << cudaGetErrorString(err) << std::endl;
-    //     exit(EXIT_FAILURE);
-    // }
+    cudaMalloc((void **) &D_g, size);
 
     /* send matrix H to gpu */
-    err = cudaMemcpy(D_h, H_h, size, cudaMemcpyHostToDevice);
-
-    // /* verify memcopy from host to device succeeded */
-    // if (err != cudaSuccess) 
-    // {
-    //     std::cout << "Failed to copy matrix H from host to device - " << cudaGetErrorString(err) << std::endl;
-    //     exit(EXIT_FAILURE);
-    // }
+    cudaMemcpy(D_h, H_h, size, cudaMemcpyHostToDevice);
 
     /* send matrix G to gpu */
-    err = cudaMemcpy(D_g, H_g, size, cudaMemcpyHostToDevice);
-
-    // /* verify memcopy from host to device succeeded */
-    // if (err != cudaSuccess) 
-    // {
-    //     std::cout << "Failed to copy matrix G from host to device - " << cudaGetErrorString(err) << std::endl;
-    //     exit(EXIT_FAILURE);
-    // }
+    cudaMemcpy(D_g, H_g, size, cudaMemcpyHostToDevice);
 
     /* initialize event timing variables */
     cudaEvent_t start, stop;
@@ -166,15 +134,14 @@ int main(int argc, char * argv[])
     cudaDeviceProp properties;
     cudaGetDeviceProperties(&properties, 0);
     int threadsPerBlock = properties.maxThreadsPerBlock;
-    int blocksPerGrid = (numElements + threadsPerBlock - 1) / threadsPerBlock;
 
     /* execute kernel with in loop with timing */
     cudaEventRecord(start);
     while(I > 0)
     {
-        calculateTemp<<<blocksPerGrid, threadsPerBlock>>>(D_h, D_g, N);
+        calculateTemp<<<(N * N), threadsPerBlock>>>(D_h, D_g, N);
         cudaDeviceSynchronize();
-        copyMatrix<<<blocksPerGrid, threadsPerBlock>>>(D_h, D_g, N);
+        copyMatrix<<<(N * N), threadsPerBlock>>>(D_h, D_g, N);
         cudaDeviceSynchronize();
         I--;
     }
@@ -183,61 +150,33 @@ int main(int argc, char * argv[])
     /* synchronize event at end of kernel execution */
     cudaEventSynchronize(stop);
 
-    // /* verify successful launch */
-    // err = cudaGetLastError();
-
-    // if (err != cudaSuccess) 
-    // {
-    //     std::cout << "Failed to launch calculateTemp kernel - " << cudaGetErrorString(err) << std::endl;
-    //     exit(EXIT_FAILURE);
-    // }
-
     /* calculate kernel execution time & write to console */
     float milli = 0;
     cudaEventElapsedTime(&milli, start, stop);
     std::cout << std::fixed << std::setprecision(2) << milli << std::endl;
 
     /* copy data back to cpu */
-    err = cudaMemcpy(H_h, D_h, size, cudaMemcpyDeviceToHost);
-
-    // /* verify memcopy from device to host succeeded */
-    // if (err != cudaSuccess) 
-    // {
-    //     std::cout << "Failed to copy matrix H from device to host - " << cudaGetErrorString(err) << std::endl;
-    //     exit(EXIT_FAILURE);
-    // }
+    cudaMemcpy(H_h, D_h, size, cudaMemcpyDeviceToHost);
 
     /* evaluate results & write to csv */
     std::ofstream ofs ("finalTemperatures.csv", std::ofstream::trunc);
-    for (int i = 0; i < N; i++)
+    for (int i = 0; i < (N * N); i++)
     {
-        for (int j = 0; j < N; j++)
+        ofs << std::fixed << std::setprecision(6) << H_h[i];
+        if (((i + 1) % N) == 0 && i != 0)
         {
-            ofs << std::fixed << std::setprecision(6) << *(H_h + (j * N) + i) << ", ";
+            ofs << std::endl;
         }
-        ofs << std::endl;
+        else
+        {
+            ofs << ", ";
+        }
     }
     ofs.close();
 
     /* free device memory */
-    err = cudaFree(D_h);
-    
-    // /* verify cuda memory successfully freed */
-    // if (err != cudaSuccess) 
-    // {
-    //     std::cout << "Failed to free device matrix/matrices - " << cudaGetErrorString(err) << std::endl;
-    //     exit(EXIT_FAILURE);
-    // }
-
-    /* free device memory */
-    err = cudaFree(D_g);
-    
-    // /* verify cuda memory successfully freed */
-    // if (err != cudaSuccess) 
-    // {
-    //     std::cout << "Failed to free device matrix/matrices - " << cudaGetErrorString(err) << std::endl;
-    //     exit(EXIT_FAILURE);
-    // }
+    cudaFree(D_h);
+    cudaFree(D_g);
     
     /* free host memory */
     free(H_h);
