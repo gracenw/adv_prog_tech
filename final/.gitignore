@@ -5,3 +5,7 @@ Makefile
 !CMakeLists.txt
 common
 glm
+external
+ogl
+Simple*
+setup.sh
