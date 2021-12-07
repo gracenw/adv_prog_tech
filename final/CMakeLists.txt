@@ -1,43 +1,25 @@
-cmake_minimum_required (VERSION 3.20)
-project (final)
+cmake_minimum_required(VERSION 3.20)
+
+project(final)
+
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
+
+include_directories(/usr/local/include)
+link_directories(/usr/local/lib)
+
+include_directories(glm)
+
+add_executable(final
+        main.cpp
+)
+
+add_library(glm STATIC IMPORTED)
+target_link_libraries(final ${ALL_LIBS})
 
 find_package(OpenGL REQUIRED)
 find_package(GLUT REQUIRED)
 
-add_subdirectory (external)
+include_directories( ${OPENGL_INCLUDE_DIRS} ${GLUT_INCLUDE_DIRS} )
 
-include_directories(
-	external/glfw-3.1.2/include/
-	external/glm-0.9.7.1/
-	external/glew-1.13.0/include/
-	common
-)
-
-set(ALL_LIBS
-	${OPENGL_LIBRARY}
-	${GLUT_LIBRARY}
-	glfw
-	GLEW_1130
-)
-
-add_definitions(
-	-DTW_STATIC
-	-DTW_NO_LIB_PRAGMA
-	-DTW_NO_DIRECT3D
-	-DGLEW_STATIC
-	-D_CRT_SECURE_NO_WARNINGS
-)
-
-add_executable(final 
-	main.cpp
-	common/objloader.cpp
-	common/objloader.hpp
-	common/shader.cpp
-	common/shader.hpp
-	common/controls.cpp
-	common/controls.hpp
-)
-
-target_link_libraries(final
-	${ALL_LIBS}
-)
+target_link_libraries(final ${OPENGL_LIBRARIES} ${GLUT_LIBRARY} )
