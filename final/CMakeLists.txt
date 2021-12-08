@@ -11,8 +11,6 @@ add_executable(
         glew/include/GL/glxew.h
         glew/include/GL/glew.h
         glew/src/glew.c
-        utils/objloader.hpp
-        utils/objloader.cpp
 )
 
 add_library(glm STATIC IMPORTED)
@@ -23,7 +21,6 @@ find_package(GLUT REQUIRED)
 
 include_directories(
         glm
-        utils
         glew/include
         ${X11_INCLUDE_DIR}
         ${OPENGL_INCLUDE_DIRS} 

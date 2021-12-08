@@ -28,13 +28,6 @@
 #include <GL/glut.h>
 #include <GL/freeglut.h>
 #include <glm.hpp>
-#include <objloader.hpp>
-
-/* using GLUT instead of GLFW bc i had a lot of issues with it */
-#include <GL/gl.h>
-#include <GL/glut.h>
-#include <GL/freeglut.h>
-#include <glm.hpp>
 
 using namespace std;
 
@@ -64,6 +57,13 @@ struct triple
     double z;
 } sphereCenter{0, 0, 50}, origin{0, 0, 0};
 
+/* print function for debugging purposes */
+ostream& operator<<(ostream& os, const triple& t)
+{
+    os << "(" << t.x << ", " << t.y << ", " << t.z << ")";
+    return os;
+}
+
 /* simple function to find the magnitude of a 3D vector */
 inline double magnitude3D(triple *left, triple *right)
 {
@@ -87,92 +87,70 @@ public:
     /* member functions */
     thread start();
     void setNewPos();
-    void setNewVel(bool twoMSCondition);
-    void setNewAcc(triple *directionalVector);
+    void setNewVel();
+    void setNewAcc();
 };
 
 /* sets new positional data with UAV pointer */
 void ECE_UAV::setNewPos()
 {
     chrono::duration<double> elapsed = chrono::system_clock::now() - start_clock;
-    this->pos.x = this->pos.x + this->vel.x * elapsed.count() + 0.5 * this->acc.x * pow(elapsed.count(), 2);
-    this->pos.y = this->pos.y + this->vel.y * elapsed.count() + 0.5 * this->acc.y * pow(elapsed.count(), 2);
-    this->pos.z = this->pos.z + this->vel.z * elapsed.count() + 0.5 * this->acc.z * pow(elapsed.count(), 2);
+    this->pos.x = this->pos.x + this->vel.x * (elapsed.count() - 5) + 0.5 * this->acc.x * pow((elapsed.count() - 5), 2);
+    this->pos.y = this->pos.y + this->vel.y * (elapsed.count() - 5) + 0.5 * this->acc.y * pow((elapsed.count() - 5), 2);
+    this->pos.z = this->pos.z + this->vel.z * (elapsed.count() - 5) + 0.5 * this->acc.z * pow((elapsed.count() - 5), 2);
 }
 
 /* sets new velocity values with UAV pointer */
-void ECE_UAV::setNewVel(bool twoMSCondition = false)
+void ECE_UAV::setNewVel()
 {
     chrono::duration<double> elapsed = chrono::system_clock::now() - start_clock;
-    this->vel.x = this->vel.x + this->acc.x * elapsed.count();
-    this->vel.y = this->vel.y + this->acc.y * elapsed.count();
-    this->vel.z = this->vel.z + this->acc.z * elapsed.count();
+    // cout << "time: " <<  (elapsed.count() - 5) << endl;
+    this->vel.x = this->vel.x + this->acc.x * (elapsed.count() - 5);
+    this->vel.y = this->vel.y + this->acc.y * (elapsed.count() - 5);
+    this->vel.z = this->vel.z + this->acc.z * (elapsed.count() - 5);
 
-    if (twoMSCondition)
+    /* ensure that uav maintains speed between 2m/s and 10m/s around sphere */
+    while (magnitude3D(&this->vel, &origin) > 10)
     {
-        /* ensure velocity is not greater than 2m/s if uav hasnt yet reached sphere */
-        while (magnitude3D(&this->vel, &origin) > 2)
-        {
-            /* divide by two until magnitude is small enough */
-            this->vel.x /= 1.5;
-            this->vel.y /= 1.5;
-            this->vel.z /= 1.5;
-        }
+        /* divide by two until magnitude is small enough */
+        this->vel.x /= 1.5;
+        this->vel.y /= 1.5;
+        this->vel.z /= 1.5;
     }
-    else
+    while (magnitude3D(&this->vel, &origin) < 2)
     {
-        /* ensure that uav maintains speed between 2m/s and 10m/s around sphere */
-        while (magnitude3D(&this->vel, &origin) > 10)
-        {
-            /* divide by two until magnitude is small enough */
-            this->vel.x /= 1.5;
-            this->vel.y /= 1.5;
-            this->vel.z /= 1.5;
-        }
-        while (magnitude3D(&this->vel, &origin) < 2)
-        {
-            /* divide by two until magnitude is small enough */
-            this->vel.x *= 1.5;
-            this->vel.y *= 1.5;
-            this->vel.z *= 1.5;
-        }
+        /* divide by two until magnitude is small enough */
+        this->vel.x *= 1.5;
+        this->vel.y *= 1.5;
+        this->vel.z *= 1.5;
     }
 }
 
 /* sets new acceleration values with UAV pointer */
-void ECE_UAV::setNewAcc(triple *directionalVector = NULL)
+void ECE_UAV::setNewAcc()
 {
+    triple force;
+
     /* determine magnitude of gravity and sphere force */
     double gravityForceZ = -10;
     double forceMagnitude = k * (10 - (magnitude3D(&this->pos, &sphereCenter)));
 
-    triple force;
-    if (directionalVector == NULL)
-    {
-        /* calculate force of sphere vector using a random unit vector and magnitude */
-        triple randomVector{(sphereCenter.y - this->pos.y), -(sphereCenter.x - this->pos.x), (double)(rand() % 10)};
-        double randMagnitude = magnitude3D(&randomVector, &origin);
-        randomVector.x /= randMagnitude; // FINISH
-        randomVector.y /= randMagnitude;
-        randomVector.z /= randMagnitude;
+    /* calculate force of sphere vector using a random unit vector and magnitude */
+    triple randomVector{(sphereCenter.y - this->pos.y), -(sphereCenter.x - this->pos.x), (double)(rand() % 10)};
+    double randMagnitude = magnitude3D(&randomVector, &origin);
+    randomVector.x /= randMagnitude;
+    randomVector.y /= randMagnitude;
+    randomVector.z /= randMagnitude;
 
-        /* calculate final total force of sphere (modeled as spring) and gravity */
-        force.x = randomVector.x * forceMagnitude;
-        force.y = randomVector.y * forceMagnitude;
-        force.z = randomVector.z * forceMagnitude + gravityForceZ;
-    }
-    else
-    {
-        /* calculate final total force of sphere (modeled as spring) and gravity */
-        force.x = directionalVector->x * forceMagnitude;
-        force.y = directionalVector->y * forceMagnitude;
-        force.z = directionalVector->z * forceMagnitude + gravityForceZ;
-    }
+    /* calculate final total force of sphere (modeled as spring) and gravity */
+    force.x = randomVector.x * forceMagnitude;
+    force.y = randomVector.y * forceMagnitude;
+    force.z = randomVector.z * forceMagnitude + gravityForceZ;
 
     /* check that magnitude of force is less than 20 */
     while (magnitude3D(&force, &origin) > 20)
     {
-        /* divide by two until magnitude is small enough */
+        /* divide by 1.5 until magnitude is small enough */
         force.x /= 1.5;
         force.y /= 1.5;
         force.z /= 1.5;
@@ -196,28 +174,38 @@ void threadFunction(ECE_UAV *pUAV)
     /* create initial unit vector for movement towards sphere center */
     double distanceToSphere = magnitude3D(&pUAV->pos, &sphereCenter);
     triple directionToSphere{
-        (sphereCenter.x - pUAV->pos.x) / distanceToSphere,
-        (sphereCenter.y - pUAV->pos.y) / distanceToSphere,
-        (sphereCenter.z - pUAV->pos.z) / distanceToSphere};
+        (sphereCenter.x - pUAV->pos.x) / (distanceToSphere),
+        (sphereCenter.y - pUAV->pos.y) / (distanceToSphere),
+        (sphereCenter.z - pUAV->pos.z) / (distanceToSphere)};
+
+    bool firstContact = false;
 
     /* loop until 60 seconds have passed and all uavs have met end condition */
     while (endAll < 15)
     {
-        // cout << pUAV->pos.x << " " << pUAV->pos.y << " " << pUAV->pos.z << endl;
         /* update position, velocity, acceleration with kinematic equations */
-        if (magnitude3D(&pUAV->pos, &sphereCenter) > 10)
+        if (magnitude3D(&pUAV->pos, &sphereCenter) > 10 && !firstContact)
         {
-            /* has not yet reached sphere */
-            (*pUAV).setNewAcc(&directionToSphere);
-            (*pUAV).setNewVel(true);
+            /* has not yet reached sphere - not using functions to update position */
+            double scale = 0.0205;
+
+            /* scale was calculated so uavs do not move more than 2m/s */
+            pUAV->pos.x += (scale * directionToSphere.x);
+            pUAV->pos.y += (scale * directionToSphere.y);
+            pUAV->pos.z += (scale * directionToSphere.z);
         }
         else
         {
             /* has reached sphere */
+            firstContact = true;
             (*pUAV).setNewAcc();
             (*pUAV).setNewVel();
+            (*pUAV).setNewPos();
+            
+            // cout << "position: " << pUAV->pos << endl;
+            // cout << "velocity: " << pUAV->vel << endl;
+            // cout << "acceleration: " << pUAV->acc << endl << endl;
         }
-        (*pUAV).setNewPos();
 
         /* check for collisions */
         for (int i = 0; i < numUAVs; i++)
@@ -243,6 +231,7 @@ void threadFunction(ECE_UAV *pUAV)
 
         /* thread sleeps for 10ms */
         this_thread::sleep_for(chrono::milliseconds(10));
+        // this_thread::sleep_for(chrono::seconds(5));
     }
 }
 
@@ -343,14 +332,14 @@ void glDisplay()
 		// glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
 		// glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
         
-        /* convert between corrdinate systems and load teapot */
+        /* convert between coordinate systems and load teapot */
         glPushMatrix();
-        double glX = (((uavs[i].pos.y - -(fieldLength / 2)) * (2.35 - -2.35)) / ((fieldLength / 2) - -(fieldLength / 2))) + -2.35;
-        double glY = (((uavs[i].pos.z - 0) * (5 - -1)) / (60 - 0)) + -1;
-        double glZ = (((uavs[i].pos.x - -(fieldWidth / 2)) * (2.35 - 1.65)) / ((fieldWidth / 2) - -(fieldWidth / 2))) + 1.65;
+        double glX = (((uavs[i].pos.y - -(fieldLength / 2)) * (-2.4 - 2.4)) / ((fieldLength / 2) - -(fieldLength / 2))) + 2.4;
+        double glY = (((uavs[i].pos.z - 0) * (0.5 - -1)) / (60 - 0)) + -1;
+        double glZ = (((-uavs[i].pos.x - -(fieldWidth / 2)) * (2.4 - 1.55)) / ((fieldWidth / 2) - -(fieldWidth / 2))) + 1.55;
         glTranslated(glX, glY, glZ);
-        glColor3i(1, 0, 0);
-        glutWireTorus(0.005, 0.01, 5, 10);
+        glColor3d(1.0, 0.0, 0.0);
+        glutSolidTorus(0.02, 0.04, 10, 20);
         // glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
         glPopMatrix();
     }
@@ -365,7 +354,8 @@ void runOpenGL()
     while (true)
     {
         glutMainLoopEvent();
-        this_thread::sleep_for(chrono::milliseconds(30));
+        glDisplay();
+        this_thread::sleep_for(chrono::milliseconds(100));
     }
 }
 
@@ -376,7 +366,7 @@ int main(int argc, char **argv)
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
     glutInitWindowPosition(1000, 100);
-    glutInitWindowSize(400, 400);
+    glutInitWindowSize(800, 800);
     glutCreateWindow("UAV Simulation");
 
     /* set display function and initialize camera within window */
