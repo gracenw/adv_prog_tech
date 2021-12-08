@@ -35,7 +35,7 @@ using namespace std;
 static const double fieldWidth = 48.80;
 static const double fieldLength = 91.44;
 static const unsigned numUAVs = 15;
-static const unsigned k = 1;
+static const unsigned k = 0.5;
 
 /* useful object loading stuff */
 unsigned int vertexbuffer, uvbuffer;
@@ -69,6 +69,10 @@ inline double magnitude3D(triple *left, triple *right)
 {
     return (sqrt(pow((left->x - right->x), 2) + pow((left->y - right->y), 2) + pow((left->z - right->z), 2)));
 }
+inline double magnitude3D(double x, double y, double z)
+{
+    return (sqrt(pow(x, 2) + pow(y, 2) + pow(z, 2)));
+}
 
 /* class representating a UAV */
 class ECE_UAV
@@ -81,86 +85,13 @@ public:
     double mass = 1;
     bool end = false;
     int index;
-    triple pos, vel, acc;
+    triple pos;
+    double theta, phi, rho;
     thread thr;
 
     /* member functions */
     thread start();
-    void setNewPos();
-    void setNewVel();
-    void setNewAcc();
 };
-
-/* sets new positional data with UAV pointer */
-void ECE_UAV::setNewPos()
-{
-    chrono::duration<double> elapsed = chrono::system_clock::now() - start_clock;
-    this->pos.x = this->pos.x + this->vel.x * (elapsed.count() - 5) + 0.5 * this->acc.x * pow((elapsed.count() - 5), 2);
-    this->pos.y = this->pos.y + this->vel.y * (elapsed.count() - 5) + 0.5 * this->acc.y * pow((elapsed.count() - 5), 2);
-    this->pos.z = this->pos.z + this->vel.z * (elapsed.count() - 5) + 0.5 * this->acc.z * pow((elapsed.count() - 5), 2);
-}
-
-/* sets new velocity values with UAV pointer */
-void ECE_UAV::setNewVel()
-{
-    chrono::duration<double> elapsed = chrono::system_clock::now() - start_clock;
-    // cout << "time: " <<  (elapsed.count() - 5) << endl;
-    this->vel.x = this->vel.x + this->acc.x * (elapsed.count() - 5);
-    this->vel.y = this->vel.y + this->acc.y * (elapsed.count() - 5);
-    this->vel.z = this->vel.z + this->acc.z * (elapsed.count() - 5);
-
-    /* ensure that uav maintains speed between 2m/s and 10m/s around sphere */
-    while (magnitude3D(&this->vel, &origin) > 10)
-    {
-        /* divide by two until magnitude is small enough */
-        this->vel.x /= 1.5;
-        this->vel.y /= 1.5;
-        this->vel.z /= 1.5;
-    }
-    while (magnitude3D(&this->vel, &origin) < 2)
-    {
-        /* divide by two until magnitude is small enough */
-        this->vel.x *= 1.5;
-        this->vel.y *= 1.5;
-        this->vel.z *= 1.5;
-    }
-}
-
-/* sets new acceleration values with UAV pointer */
-void ECE_UAV::setNewAcc()
-{
-    triple force;
-
-    /* determine magnitude of gravity and sphere force */
-    double gravityForceZ = -10;
-    double forceMagnitude = k * (10 - (magnitude3D(&this->pos, &sphereCenter)));
-
-    /* calculate force of sphere vector using a random unit vector and magnitude */
-    triple randomVector{(sphereCenter.y - this->pos.y), -(sphereCenter.x - this->pos.x), (double)(rand() % 10)};
-    double randMagnitude = magnitude3D(&randomVector, &origin);
-    randomVector.x /= randMagnitude;
-    randomVector.y /= randMagnitude;
-    randomVector.z /= randMagnitude;
-
-    /* calculate final total force of sphere (modeled as spring) and gravity */
-    force.x = randomVector.x * forceMagnitude;
-    force.y = randomVector.y * forceMagnitude;
-    force.z = randomVector.z * forceMagnitude + gravityForceZ;
-
-    /* check that magnitude of force is less than 20 */
-    while (magnitude3D(&force, &origin) > 20)
-    {
-        /* divide by 1.5 until magnitude is small enough */
-        force.x /= 1.5;
-        force.y /= 1.5;
-        force.z /= 1.5;
-    }
-
-    /* assign new acceleration using f = ma, m = 1 */
-    this->acc.x = force.x;
-    this->acc.y = force.y;
-    this->acc.z = force.z;
-}
 
 /* initialize uav objects here so collision conditions can be checked - will be declared in main */
 ECE_UAV uavs[numUAVs];
@@ -180,31 +111,46 @@ void threadFunction(ECE_UAV *pUAV)
 
     bool firstContact = false;
 
+    double t = 0.0;
+
     /* loop until 60 seconds have passed and all uavs have met end condition */
     while (endAll < 15)
     {
         /* update position, velocity, acceleration with kinematic equations */
         if (magnitude3D(&pUAV->pos, &sphereCenter) > 10 && !firstContact)
         {
-            /* has not yet reached sphere - not using functions to update position */
-            double scale = 0.0205;
-
-            /* scale was calculated so uavs do not move more than 2m/s */
+            /* 
+                has not yet reached sphere
+                using x = x0 + t * v + a * t^2 = x0 + v
+                where a = 0 (constant velocity) and v is manually set
+                scale was calculated to keep velocity at max 2m/s
+            */
+            double scale = 0.06;
             pUAV->pos.x += (scale * directionToSphere.x);
             pUAV->pos.y += (scale * directionToSphere.y);
             pUAV->pos.z += (scale * directionToSphere.z);
         }
         else
         {
+            if (!firstContact)
+            {
+                /* set starting time */
+                start_clock = chrono::system_clock::now();
+            }
+
             /* has reached sphere */
             firstContact = true;
-            (*pUAV).setNewAcc();
-            (*pUAV).setNewVel();
-            (*pUAV).setNewPos();
             
-            // cout << "position: " << pUAV->pos << endl;
-            // cout << "velocity: " << pUAV->vel << endl;
-            // cout << "acceleration: " << pUAV->acc << endl << endl;
+            pUAV->phi = acos(pUAV->pos.z / (magnitude3D(pUAV->pos.x, pUAV->pos.y, pUAV->pos.z)));
+            pUAV->theta = atan(pUAV->pos.y / pUAV->pos.x);
+
+            double deltaPhi = 0.01 * (double) rand()/RAND_MAX;
+            double deltaTheta = 0.01 * (double) rand()/RAND_MAX;
+
+            pUAV->pos.x = pUAV->rho * sin(pUAV->phi + deltaPhi) * cos(pUAV->theta + deltaTheta);
+            // cout << pUAV->phi << endl << pUAV->theta << endl;
+            pUAV->pos.y = pUAV->rho * sin(pUAV->phi + deltaPhi) * sin(pUAV->theta + deltaTheta);
+            pUAV->pos.z = pUAV->rho * cos(pUAV->theta + deltaTheta) + 40;
         }
 
         /* check for collisions */
@@ -212,17 +158,20 @@ void threadFunction(ECE_UAV *pUAV)
         {
             if (i != pUAV->index && magnitude3D(&pUAV->pos, &uavs[i].pos) <= 0.1)
             {
-                /* lock mutex and swap velocity vectors */
-                triple temp = pUAV->vel;
-                pUAV->vel = uavs[i].vel;
+                /* lock mutex and swap theta and phi */
+                double temp_phi = pUAV->phi;
+                double temp_theta = pUAV->theta;
+                pUAV->phi = uavs[i].phi;
+                pUAV->theta = uavs[i].theta;
                 swap_mtx.lock();
-                uavs[i].vel = pUAV->vel;
+                uavs[i].phi = temp_phi;
+                uavs[i].theta = temp_theta;
                 swap_mtx.unlock();
             }
         }
 
         /* check for end condition */
-        chrono::duration<double> elapsed = chrono::system_clock::now() - start_clock;
+        chrono::duration<double> elapsed = (chrono::system_clock::now() - start_clock);
         if (magnitude3D(&pUAV->pos, &sphereCenter) <= 10 && elapsed >= chrono::seconds(60) && !pUAV->end)
         {
             endAll++;
@@ -230,8 +179,8 @@ void threadFunction(ECE_UAV *pUAV)
         }
 
         /* thread sleeps for 10ms */
+        t += 0.1;
         this_thread::sleep_for(chrono::milliseconds(10));
-        // this_thread::sleep_for(chrono::seconds(5));
     }
 }
 
@@ -280,10 +229,9 @@ void launchAnimation()
 
         /* z positions */
         uavs[i].pos.z = 0;
-    }
 
-    /* set starting time */
-    start_clock = chrono::system_clock::now();
+        uavs[i].rho = 10;
+    }
 
     /* create main thread for opengl stuff */
     thread gl_thr = thread(runOpenGL);
@@ -304,6 +252,10 @@ void launchAnimation()
     }
 }
 
+/* keep track of opacity */
+double alpha = 0.5;
+bool increasing = true;
+
 /* display function called by main loop, updates scene*/
 void glDisplay()
 {
@@ -319,28 +271,36 @@ void glDisplay()
     glVertex3d(-2.5, -1.0, 1.5);
     glEnd();
 
+    /* alter opacity */ //FINISH
+    if (alpha <= 1.0 && increasing)
+    {
+        if (alpha == 1.0)
+        {
+            increasing = false;
+        }
+        alpha += 0.01;
+    }
+    else if (alpha >= 0.5 && !increasing)
+    {
+        if (alpha == 0.5)
+        {
+            increasing = true;
+        }
+        alpha -= 0.01;
+    }
+    // cout << alpha << endl;
+
     /* convert between coordinate fields and draw each uav */
     for (int i = 0; i < numUAVs; i++)
-    {
-        // /* first attribute buffer: vertices */
-		// glEnableVertexAttribArray(0);
-		// glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-		// glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-
-		// /* second attribute buffer: uvs */
-		// glEnableVertexAttribArray(1);
-		// glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
-		// glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
-        
-        /* convert between coordinate systems and load teapot */
+    {        
+        /* convert between coordinate systems and load object */
         glPushMatrix();
         double glX = (((uavs[i].pos.y - -(fieldLength / 2)) * (-2.4 - 2.4)) / ((fieldLength / 2) - -(fieldLength / 2))) + 2.4;
         double glY = (((uavs[i].pos.z - 0) * (0.5 - -1)) / (60 - 0)) + -1;
         double glZ = (((-uavs[i].pos.x - -(fieldWidth / 2)) * (2.4 - 1.55)) / ((fieldWidth / 2) - -(fieldWidth / 2))) + 1.55;
         glTranslated(glX, glY, glZ);
-        glColor3d(1.0, 0.0, 0.0);
-        glutSolidTorus(0.02, 0.04, 10, 20);
-        // glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
+        glColor4d(1.0, 0.0, 0.0, alpha);
+        glutSolidTorus(0.01, 0.02, 10, 20);
         glPopMatrix();
     }
 
@@ -375,6 +335,10 @@ int main(int argc, char **argv)
     /* set background to black */
     glClearColor(0.0, 0.0, 0.0, 1.0);
 
+    /* set blend function */
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_BLEND);
+
     /* set perspective of camera */
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -385,20 +349,6 @@ int main(int argc, char **argv)
     glLoadIdentity();
     glTranslated(0, 1, -3);
     glRotated(30, 1, 0, 0);
-
-    // /* load object */
-	// vector<glm::vec3> normals;
-	// vector<glm::vec2> uvs;
-	// bool res = loadOBJ("teapot.obj", vertices, uvs, normals);
-
-    // /* load into VBO */
-	// glGenBuffers(1, &vertexbuffer);
-	// glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-	// glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
-
-	// glGenBuffers(1, &uvbuffer);
-	// glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
-	// glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), &uvs[0], GL_STATIC_DRAW);
 
     /* launch animation */
     launchAnimation();
