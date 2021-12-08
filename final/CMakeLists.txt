@@ -1,3 +1,9 @@
+## Author: Gracen Wallace
+## Class: ECE 6122 A
+## Last Date Modified: 12/8/2021
+## Description:
+## cmake file to build UAV simulation
+
 cmake_minimum_required(VERSION 3.20)
 
 project(final)

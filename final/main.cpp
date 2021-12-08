@@ -1,7 +1,7 @@
 /*
     Author: Gracen Wallace
     Class: ECE 6122 A
-    Last Date Modified: 12/?/2021
+    Last Date Modified: 12/8/2021
     Description:
     3D Animation of flying torus UAVs around a sphere
     suspended above a football field
@@ -141,6 +141,7 @@ void threadFunction(ECE_UAV *pUAV)
             /* has reached sphere */
             firstContact = true;
             
+            /* update position using spherical coordiantes */
             pUAV->phi = acos((pUAV->pos.z) / (magnitude3D(pUAV->pos.x, pUAV->pos.y, pUAV->pos.z)));
             pUAV->theta = atan(pUAV->pos.y / pUAV->pos.x);
 
@@ -150,6 +151,7 @@ void threadFunction(ECE_UAV *pUAV)
             pUAV->pos.x = pUAV->rho * sin(pUAV->phi + deltaPhi) * cos(pUAV->theta + deltaTheta);
             pUAV->pos.y = pUAV->rho * sin(pUAV->phi + deltaPhi) * sin(pUAV->theta + deltaTheta);
             pUAV->pos.z = pUAV->rho * cos(pUAV->theta + deltaTheta) + 40;
+            /* i tried,,, im very tired */
         }
 
         /* check for collisions */
@@ -315,7 +317,7 @@ int main(int argc, char **argv)
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
     glutInitWindowPosition(1000, 100);
-    glutInitWindowSize(800, 800);
+    glutInitWindowSize(400, 400);
     glutCreateWindow("UAV Simulation");
 
     /* set display function and initialize camera within window */
