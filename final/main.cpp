@@ -30,7 +30,11 @@
 #include <glm.hpp>
 #include <objloader.hpp>
 
-using namespace std;
+/* using GLUT instead of GLFW bc i had a lot of issues with it */
+#include <GL/gl.h>
+#include <GL/glut.h>
+#include <GL/freeglut.h>
+#include <glm.hpp>
 
 /* generally useful static global variables */
 static const double fieldWidth = 48.80;
