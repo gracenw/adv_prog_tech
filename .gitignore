@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 .vscode
 **/*.txt
 **/*.out
@@ -8,3 +9,18 @@
 **/core.*
 **/*.log
 **/*.csv
+=======
+**/*.dll
+**/*.exe
+build/*
+bin-*/*
+distrib/build_*/*
+**.bak
+**.orig
+screenshot.bmp
+*.pyc
+Thumbs.db
+OpenGL-tutorial_v*
+**.mtl
+.DS_Store
+>>>>>>> 316cccc5f76f47f09c16089d98be284b689e057d

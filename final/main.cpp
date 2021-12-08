@@ -1,35 +1,51 @@
+/*
+    Author: Gracen Wallace
+    Class: ECE 6122 A
+    Last Date Modified: 12/?/2021
+    Description:
+    3D Animation of flying torus UAVs around a sphere
+    suspended above a football field
+
+    Compiles and runs on pace-ice with:
+    source setup.sh && cmake . && make && ./final
+*/
+
+/* standard libraries */
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
 #include <thread>
+#include <cmath>
 #include <ctime>
 #include <chrono>
 #include <vector>
 #include <atomic>
 #include <mutex>
+
+/* using GLUT */
 #include <GL/glew.h>
-// #include <GL/gl.h>
-// #include <GL/glut.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <GLFW/glfw3.h>
-#include <shader.hpp>
+#include <GL/gl.h>
+#include <GL/glut.h>
+#include <GL/freeglut.h>
+#include <glm.hpp>
 #include <objloader.hpp>
-#include <controls.hpp>
 
 using namespace std;
-
-GLFWwindow* window;
 
 /* generally useful static global variables */
 static const double fieldWidth = 48.80;
 static const double fieldLength = 91.44;
-static const unsigned numTeapots = 15;
+static const unsigned numUAVs = 15;
 static const unsigned k = 1;
+
+/* useful object loading stuff */
+unsigned int vertexbuffer, uvbuffer;
+vector<glm::vec3> vertices;
 
 /* threading variables */
 mutex swap_mtx;
 atomic_uint64_t endAll(0);
+void runOpenGL();
 
 /* clock starting time point to compute time elapsed */
 chrono::system_clock::time_point start_clock;
@@ -40,37 +56,37 @@ struct triple
     double x;
     double y;
     double z;
-} sphereCenter{ 0, 0, 50 }, origin{ 0, 0, 0 };
+} sphereCenter{0, 0, 50}, origin{0, 0, 0};
 
 /* simple function to find the magnitude of a 3D vector */
-inline double magnitude3D (triple * left, triple * right)
+inline double magnitude3D(triple *left, triple *right)
 {
-    return ( sqrt( pow((left->x - right->x), 2) + pow((left->y - right->y), 2) + pow((left->z - right->z), 2) ) );
+    return (sqrt(pow((left->x - right->x), 2) + pow((left->y - right->y), 2) + pow((left->z - right->z), 2)));
 }
 
-/* class representating a teapot UAV */
-class ECE_UAV 
+/* class representating a UAV */
+class ECE_UAV
 {
-    public:
-        /* constructor */
-        ECE_UAV() { };
+public:
+    /* constructor */
+    ECE_UAV(){};
 
-        /* member variables */
-        double mass = 1;
-        bool end = false;
-        int index;
-        triple pos, vel, acc;
-        thread thr;
+    /* member variables */
+    double mass = 1;
+    bool end = false;
+    int index;
+    triple pos, vel, acc;
+    thread thr;
 
-        /* member functions */
-        thread start ();
-        void setNewPos ();
-        void setNewVel (bool twoMSCondition);
-        void setNewAcc (triple * directionalVector);
+    /* member functions */
+    thread start();
+    void setNewPos();
+    void setNewVel(bool twoMSCondition);
+    void setNewAcc(triple *directionalVector);
 };
 
 /* sets new positional data with UAV pointer */
-void ECE_UAV::setNewPos ()
+void ECE_UAV::setNewPos()
 {
     chrono::duration<double> elapsed = chrono::system_clock::now() - start_clock;
     this->pos.x = this->pos.x + this->vel.x * elapsed.count() + 0.5 * this->acc.x * pow(elapsed.count(), 2);
@@ -79,7 +95,7 @@ void ECE_UAV::setNewPos ()
 }
 
 /* sets new velocity values with UAV pointer */
-void ECE_UAV::setNewVel (bool twoMSCondition = false)
+void ECE_UAV::setNewVel(bool twoMSCondition = false)
 {
     chrono::duration<double> elapsed = chrono::system_clock::now() - start_clock;
     this->vel.x = this->vel.x + this->acc.x * elapsed.count();
@@ -88,7 +104,7 @@ void ECE_UAV::setNewVel (bool twoMSCondition = false)
 
     if (twoMSCondition)
     {
-        /* ensure velocity is not greater than 2m/s if teapot hasnt yet reached sphere */
+        /* ensure velocity is not greater than 2m/s if uav hasnt yet reached sphere */
         while (magnitude3D(&this->vel, &origin) > 2)
         {
             /* divide by two until magnitude is small enough */
@@ -97,9 +113,9 @@ void ECE_UAV::setNewVel (bool twoMSCondition = false)
             this->vel.z /= 1.5;
         }
     }
-    else 
+    else
     {
-        /* ensure that teapot maintains speed between 2m/s and 10m/s around sphere */
+        /* ensure that uav maintains speed between 2m/s and 10m/s around sphere */
         while (magnitude3D(&this->vel, &origin) > 10)
         {
             /* divide by two until magnitude is small enough */
@@ -118,19 +134,19 @@ void ECE_UAV::setNewVel (bool twoMSCondition = false)
 }
 
 /* sets new acceleration values with UAV pointer */
-void ECE_UAV::setNewAcc (triple * directionalVector = NULL)
+void ECE_UAV::setNewAcc(triple *directionalVector = NULL)
 {
     /* determine magnitude of gravity and sphere force */
     double gravityForceZ = -10;
     double forceMagnitude = k * (10 - (magnitude3D(&this->pos, &sphereCenter)));
-    
+
     triple force;
     if (directionalVector == NULL)
     {
         /* calculate force of sphere vector using a random unit vector and magnitude */
-        triple randomVector { (double) rand(), (double) rand(), (double) rand() };
+        triple randomVector{(sphereCenter.y - this->pos.y), -(sphereCenter.x - this->pos.x), (double)(rand() % 10)};
         double randMagnitude = magnitude3D(&randomVector, &origin);
-        randomVector.x /= randMagnitude; // FINISH 
+        randomVector.x /= randMagnitude; // FINISH
         randomVector.y /= randMagnitude;
         randomVector.z /= randMagnitude;
 
@@ -162,27 +178,26 @@ void ECE_UAV::setNewAcc (triple * directionalVector = NULL)
     this->acc.z = force.z;
 }
 
-/* initialize teapot objects here so collision conditions can be checked - will be declared in main */
-ECE_UAV teapots[numTeapots];
+/* initialize uav objects here so collision conditions can be checked - will be declared in main */
+ECE_UAV uavs[numUAVs];
 
 /* function called by each UAV thread to update location every 10ms */
-void threadFunction (ECE_UAV * pUAV)
+void threadFunction(ECE_UAV *pUAV)
 {
     /* wait 5 seconds at beginning of simulation */
     this_thread::sleep_for(chrono::seconds(5));
 
     /* create initial unit vector for movement towards sphere center */
     double distanceToSphere = magnitude3D(&pUAV->pos, &sphereCenter);
-    triple directionToSphere 
-    {
-        (sphereCenter.x - pUAV->pos.x) / distanceToSphere, 
+    triple directionToSphere{
+        (sphereCenter.x - pUAV->pos.x) / distanceToSphere,
         (sphereCenter.y - pUAV->pos.y) / distanceToSphere,
-        (sphereCenter.z - pUAV->pos.z) / distanceToSphere
-    };
+        (sphereCenter.z - pUAV->pos.z) / distanceToSphere};
 
-    /* loop until 60 seconds have passed and all teapots have met end condition */
+    /* loop until 60 seconds have passed and all uavs have met end condition */
     while (endAll < 15)
     {
+        // cout << pUAV->pos.x << " " << pUAV->pos.y << " " << pUAV->pos.z << endl;
         /* update position, velocity, acceleration with kinematic equations */
         if (magnitude3D(&pUAV->pos, &sphereCenter) > 10)
         {
@@ -199,15 +214,15 @@ void threadFunction (ECE_UAV * pUAV)
         (*pUAV).setNewPos();
 
         /* check for collisions */
-        for (int i = 0; i < numTeapots; i++)
+        for (int i = 0; i < numUAVs; i++)
         {
-            if (i != pUAV->index && magnitude3D(&pUAV->pos, &teapots[i].pos) <= 0.1)
+            if (i != pUAV->index && magnitude3D(&pUAV->pos, &uavs[i].pos) <= 0.1)
             {
                 /* lock mutex and swap velocity vectors */
                 triple temp = pUAV->vel;
-                pUAV->vel = teapots[i].vel;
+                pUAV->vel = uavs[i].vel;
                 swap_mtx.lock();
-                teapots[i].vel = pUAV->vel;
+                uavs[i].vel = pUAV->vel;
                 swap_mtx.unlock();
             }
         }
@@ -225,212 +240,170 @@ void threadFunction (ECE_UAV * pUAV)
     }
 }
 
-thread ECE_UAV::start ()
+/* function called by uav objects to start thread */
+thread ECE_UAV::start()
 {
     return thread(threadFunction, this);
 }
 
-int main (int argc, char* argv[]) 
+void launchAnimation()
 {
-    // /* seed random number generator */
-    // srand(time(NULL));
+    /* seed random number generator */
+    srand(time(NULL));
 
-    // /* set initial positional vectors */
-    // double currentY = -(fieldLength / 2);
-    // for (int i = 0; i < numTeapots; i++)
-    // {
-    //     /* set index value */
-    //     teapots[i].index = i;
+    /* set initial positional vectors */
+    double currentY = -(fieldLength / 2);
+    for (int i = 0; i < numUAVs; i++)
+    {
+        /* set index value */
+        uavs[i].index = i;
 
-    //     /* x positions */
-    //     if (i < 5)
-    //     {
-    //         teapots[i].pos.x = fieldWidth / 2;
-    //     }
-    //     else if (i < 10)
-    //     {
-    //         teapots[i].pos.x = 0;
-    //     }
-    //     else 
-    //     {
-    //         teapots[i].pos.x = -(fieldWidth / 2);
-    //     }
+        /* x positions */
+        if (i < 5)
+        {
+            uavs[i].pos.x = fieldWidth / 2;
+        }
+        else if (i < 10)
+        {
+            uavs[i].pos.x = 0;
+        }
+        else
+        {
+            uavs[i].pos.x = -(fieldWidth / 2);
+        }
 
-    //     /* y positions */
-    //     teapots[i].pos.y = currentY;
-    //     if (currentY == (fieldLength / 2))
-    //     {
-    //         currentY = -(fieldLength / 2);
-    //     }
-    //     else
-    //     {
-    //         currentY += (fieldLength / 4);
-    //     }
+        /* y positions */
+        uavs[i].pos.y = currentY;
+        if (currentY == (fieldLength / 2))
+        {
+            currentY = -(fieldLength / 2);
+        }
+        else
+        {
+            currentY += (fieldLength / 4);
+        }
+
+        /* z positions */
+        uavs[i].pos.z = 0;
+    }
+
+    /* set starting time */
+    start_clock = chrono::system_clock::now();
+
+    /* create main thread for opengl stuff */
+    thread gl_thr = thread(runOpenGL);
+
+    /* launch threads with threadFunction */
+    for (int i = 0; i < numUAVs; i++)
+    {
+        uavs[i].thr = uavs[i].start();
+    }
+
+    /* join main gl thread */
+    gl_thr.join();
+
+    /* join all threads */
+    for (int i = 0; i < numUAVs; i++)
+    {
+        uavs[i].thr.join();
+    }
+}
+
+/* display function called by main loop, updates scene*/
+void glDisplay()
+{
+    /* clear scene */
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    /* draw green field */
+    glBegin(GL_QUADS);
+    glColor3d(0.0, 1.0, 0.0);
+    glVertex3d(-2.5, -1.0, 2.5);
+    glVertex3d(2.5, -1.0, 2.5);
+    glVertex3d(2.5, -1.0, 1.5);
+    glVertex3d(-2.5, -1.0, 1.5);
+    glEnd();
+
+    /* convert between coordinate fields and draw each uav */
+    for (int i = 0; i < numUAVs; i++)
+    {
+        // /* first attribute buffer: vertices */
+		// glEnableVertexAttribArray(0);
+		// glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+		// glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+
+		// /* second attribute buffer: uvs */
+		// glEnableVertexAttribArray(1);
+		// glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
+		// glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
         
-    //     /* z positions */
-    //     teapots[i].pos.z = 0;
-    // }
+        /* convert between corrdinate systems and load teapot */
+        glPushMatrix();
+        double glX = (((uavs[i].pos.y - -(fieldLength / 2)) * (2.35 - -2.35)) / ((fieldLength / 2) - -(fieldLength / 2))) + -2.35;
+        double glY = (((uavs[i].pos.z - 0) * (5 - -1)) / (60 - 0)) + -1;
+        double glZ = (((uavs[i].pos.x - -(fieldWidth / 2)) * (2.35 - 1.65)) / ((fieldWidth / 2) - -(fieldWidth / 2))) + 1.65;
+        glTranslated(glX, glY, glZ);
+        glColor3i(1, 0, 0);
+        glutWireTorus(0.005, 0.01, 5, 10);
+        // glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
+        glPopMatrix();
+    }
 
-    // /* set starting time */
-    // start_clock = chrono::system_clock::now();
+    /* force redraw */
+    glFlush();
+}
 
-    // /* launch threads with threadFunction */
-    // for (int i = 0; i < numTeapots; i ++)
-    // {
-    //     teapots[i].thr = teapots[i].start();
-    // }
+/* function run by opengl dedicated thread to update scene */
+void runOpenGL()
+{
+    while (true)
+    {
+        glutMainLoopEvent();
+        this_thread::sleep_for(chrono::milliseconds(30));
+    }
+}
 
-    // /* join all threads */
-    // for (int i = 0; i < numTeapots; i ++)
-    // {
-    //     // teapots[i].thr.join();
-    // }
-    
-    /* initialize opengl stuff */
-	// Initialise GLFW
-	if( !glfwInit() )
-	{
-		fprintf( stderr, "Failed to initialize GLFW\n" );
-		getchar();
-		return -1;
-	}
+/* main function initialiazing opengl window and launch~Cing animation */
+int main(int argc, char **argv)
+{
+    /* initialize and create 400x400 window */
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
+    glutInitWindowPosition(1000, 100);
+    glutInitWindowSize(400, 400);
+    glutCreateWindow("UAV Simulation");
 
-	glfwWindowHint(GLFW_SAMPLES, 4);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // To make MacOS happy; should not be needed
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    /* set display function and initialize camera within window */
+    glutDisplayFunc(glDisplay);
 
-	// Open a window and create its OpenGL context
-	window = glfwCreateWindow( 1024, 768, "Tutorial 07 - Model Loading", NULL, NULL);
-	if( window == NULL ){
-		fprintf( stderr, "Failed to open GLFW window. If you have an Intel GPU, they are not 3.3 compatible. Try the 2.1 version of the tutorials.\n" );
-		getchar();
-		glfwTerminate();
-		return -1;
-	}
-	glfwMakeContextCurrent(window);
+    /* set background to black */
+    glClearColor(0.0, 0.0, 0.0, 1.0);
 
-	// Initialize GLEW
-	glewExperimental = true; // Needed for core profile
-	if (glewInit() != GLEW_OK) {
-		fprintf(stderr, "Failed to initialize GLEW\n");
-		getchar();
-		glfwTerminate();
-		return -1;
-	}
+    /* set perspective of camera */
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glFrustum(-2, 2, -1.5, 1.5, 1, 10);
 
-	// Ensure we can capture the escape key being pressed below
-	glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
-    // Hide the mouse and enable unlimited mouvement
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    
-    // Set the mouse at the center of the screen
-    glfwPollEvents();
-    glfwSetCursorPos(window, 1024/2, 768/2);
+    /* move camera in scene */
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    glTranslated(0, 1, -3);
+    glRotated(30, 1, 0, 0);
 
-	// Dark blue background
-	glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
+    // /* load object */
+	// vector<glm::vec3> normals;
+	// vector<glm::vec2> uvs;
+	// bool res = loadOBJ("teapot.obj", vertices, uvs, normals);
 
-	// Enable depth test
-	glEnable(GL_DEPTH_TEST);
-	// Accept fragment if it closer to the camera than the former one
-	glDepthFunc(GL_LESS); 
+    // /* load into VBO */
+	// glGenBuffers(1, &vertexbuffer);
+	// glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+	// glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
 
-	// Cull triangles which normal is not towards the camera
-	glEnable(GL_CULL_FACE);
+	// glGenBuffers(1, &uvbuffer);
+	// glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
+	// glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), &uvs[0], GL_STATIC_DRAW);
 
-	GLuint VertexArrayID;
-	glGenVertexArrays(1, &VertexArrayID);
-	glBindVertexArray(VertexArrayID);
-
-	// Create and compile our GLSL program from the shaders
-	GLuint programID = LoadShaders( "TransformVertexShader.vertexshader", "TextureFragmentShader.fragmentshader" );
-
-	// Get a handle for our "MVP" uniform
-	GLuint MatrixID = glGetUniformLocation(programID, "MVP");
-
-	// Read our .obj file
-	std::vector<glm::vec3> vertices;
-	std::vector<glm::vec2> uvs;
-	std::vector<glm::vec3> normals; // Won't be used at the moment.
-	bool res = loadOBJ("cube.obj", vertices, uvs, normals);
-
-	// Load it into a VBO
-
-	GLuint vertexbuffer;
-	glGenBuffers(1, &vertexbuffer);
-	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
-
-	GLuint uvbuffer;
-	glGenBuffers(1, &uvbuffer);
-	glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
-	glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), &uvs[0], GL_STATIC_DRAW);
-
-	do{
-
-		// Clear the screen
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		// Use our shader
-		glUseProgram(programID);
-
-		// Compute the MVP matrix from keyboard and mouse input
-		computeMatricesFromInputs();
-		glm::mat4 ProjectionMatrix = getProjectionMatrix();
-		glm::mat4 ViewMatrix = getViewMatrix();
-		glm::mat4 ModelMatrix = glm::mat4(1.0);
-		glm::mat4 MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-
-		// Send our transformation to the currently bound shader, 
-		// in the "MVP" uniform
-		glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
-
-		// 1rst attribute buffer : vertices
-		glEnableVertexAttribArray(0);
-		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-		glVertexAttribPointer(
-			0,                  // attribute
-			3,                  // size
-			GL_FLOAT,           // type
-			GL_FALSE,           // normalized?
-			0,                  // stride
-			(void*)0            // array buffer offset
-		);
-
-		// 2nd attribute buffer : UVs
-		glEnableVertexAttribArray(1);
-		glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
-		glVertexAttribPointer(
-			1,                                // attribute
-			2,                                // size
-			GL_FLOAT,                         // type
-			GL_FALSE,                         // normalized?
-			0,                                // stride
-			(void*)0                          // array buffer offset
-		);
-
-		// Draw the triangle !
-		glDrawArrays(GL_TRIANGLES, 0, vertices.size() );
-
-		glDisableVertexAttribArray(0);
-		glDisableVertexAttribArray(1);
-
-		// Swap buffers
-		glfwSwapBuffers(window);
-		glfwPollEvents();
-
-	} // Check if the ESC key was pressed or the window was closed
-	while( glfwGetKey(window, GLFW_KEY_ESCAPE ) != GLFW_PRESS &&
-		   glfwWindowShouldClose(window) == 0 );
-
-	// Cleanup VBO and shader
-	glDeleteBuffers(1, &vertexbuffer);
-	glDeleteBuffers(1, &uvbuffer);
-	glDeleteProgram(programID);
-	glDeleteVertexArrays(1, &VertexArrayID);
-
-	// Close OpenGL window and terminate GLFW
-	glfwTerminate();
+    /* launch animation */
+    launchAnimation();
 }
