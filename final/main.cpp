@@ -36,6 +36,8 @@
 #include <GL/freeglut.h>
 #include <glm.hpp>
 
+using namespace std;
+
 /* generally useful static global variables */
 static const double fieldWidth = 48.80;
 static const double fieldLength = 91.44;
