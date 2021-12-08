@@ -141,14 +141,13 @@ void threadFunction(ECE_UAV *pUAV)
             /* has reached sphere */
             firstContact = true;
             
-            pUAV->phi = acos(pUAV->pos.z / (magnitude3D(pUAV->pos.x, pUAV->pos.y, pUAV->pos.z)));
+            pUAV->phi = acos((pUAV->pos.z) / (magnitude3D(pUAV->pos.x, pUAV->pos.y, pUAV->pos.z)));
             pUAV->theta = atan(pUAV->pos.y / pUAV->pos.x);
 
             double deltaPhi = 0.01 * (double) rand()/RAND_MAX;
             double deltaTheta = 0.01 * (double) rand()/RAND_MAX;
 
             pUAV->pos.x = pUAV->rho * sin(pUAV->phi + deltaPhi) * cos(pUAV->theta + deltaTheta);
-            // cout << pUAV->phi << endl << pUAV->theta << endl;
             pUAV->pos.y = pUAV->rho * sin(pUAV->phi + deltaPhi) * sin(pUAV->theta + deltaTheta);
             pUAV->pos.z = pUAV->rho * cos(pUAV->theta + deltaTheta) + 40;
         }
@@ -254,7 +253,6 @@ void launchAnimation()
 
 /* keep track of opacity */
 double alpha = 0.5;
-bool increasing = true;
 
 /* display function called by main loop, updates scene*/
 void glDisplay()
@@ -271,24 +269,15 @@ void glDisplay()
     glVertex3d(-2.5, -1.0, 1.5);
     glEnd();
 
-    /* alter opacity */ //FINISH
-    if (alpha <= 1.0 && increasing)
+    /* alter opacity */
+    if (alpha == 1.0)
     {
-        if (alpha == 1.0)
-        {
-            increasing = false;
-        }
+        alpha = 0.5;
+    }
+    else
+    {
         alpha += 0.01;
     }
-    else if (alpha >= 0.5 && !increasing)
-    {
-        if (alpha == 0.5)
-        {
-            increasing = true;
-        }
-        alpha -= 0.01;
-    }
-    // cout << alpha << endl;
 
     /* convert between coordinate fields and draw each uav */
     for (int i = 0; i < numUAVs; i++)
